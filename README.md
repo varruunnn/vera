@@ -368,10 +368,23 @@ To deploy to a hosted environment:
 
 3. **Start command:**
    ```bash
+   uvicorn vera.adapters.fastapi_app:app --host 0.0.0.0 --port $PORT
+   ```
+
+   The port is passed via the `--port` CLI flag. On platforms like Render that set a `PORT` environment variable, use `$PORT` directly in the start command.
+
+   For local development:
+   ```bash
    uvicorn vera.adapters.fastapi_app:app --host 0.0.0.0 --port 8080
    ```
 
-   Adjust `--port` to match the platform's requirements. The application does not read a `PORT` environment variable automatically; the port must be specified via the `--port` CLI flag.
+### Render
+
+| Setting | Value |
+|---|---|
+| Build Command | `pip install -e .` |
+| Start Command | `uvicorn vera.adapters.fastapi_app:app --host 0.0.0.0 --port $PORT` |
+| Environment | `GEMINI_API_KEY` (optional) |
 
 4. **PYTHONPATH:** Ensure `src/` is on the Python path. This is configured automatically when installed via `pip install -e .` using the `[tool.pytest.ini_options] pythonpath` setting in `pyproject.toml`.
 
