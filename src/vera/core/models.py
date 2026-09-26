@@ -7,6 +7,42 @@ class Scope(str, Enum):
     MERCHANT = "merchant"
     CUSTOMER = "customer"
     TRIGGER = "trigger"
+    CONVERSATION = "conversation"
+
+class Intent(str, Enum):
+    POSITIVE_INTENT = "POSITIVE_INTENT"
+    NEGATIVE_INTENT = "NEGATIVE_INTENT"
+    OPT_OUT = "OPT_OUT"
+    QUESTION = "QUESTION"
+    ACTION_REQUEST = "ACTION_REQUEST"
+    UNCERTAINTY = "UNCERTAINTY"
+    AUTO_REPLY = "AUTO_REPLY"
+    UNRELATED = "UNRELATED"
+    OTHER = "OTHER"
+
+class ConversationStatus(str, Enum):
+    NEW = "NEW"
+    OUTREACH = "OUTREACH"
+    AWAITING_RESPONSE = "AWAITING_RESPONSE"
+    ENGAGED = "ENGAGED"
+    QUALIFYING = "QUALIFYING"
+    ACTION_REQUESTED = "ACTION_REQUESTED"
+    OPTED_OUT = "OPTED_OUT"
+    WAITING = "WAITING"
+    TERMINAL = "TERMINAL"
+
+class ConversationState(BaseModel):
+    conversation_id: str
+    status: ConversationStatus = ConversationStatus.NEW
+    last_action: Optional[str] = None
+    last_message: Optional[str] = None
+    last_reply: Optional[str] = None
+    reply_count: int = 0
+    consecutive_similar_replies: int = 0
+    last_intent: Optional[Intent] = None
+    opt_out: bool = False
+    positive_intent: bool = False
+    pending_action: Optional[str] = None
 
 class CategoryContext(BaseModel):
     category_id: str

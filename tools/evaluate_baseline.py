@@ -132,10 +132,10 @@ def main():
         return
 
     # Run Mode B (Gemini composition)
-    run_evaluation(pairs, dataset_path, "B - Gemini composition", use_gemini=True, use_verifier=False)
+    # run_evaluation(pairs, dataset_path, "B - Gemini composition", use_gemini=True, use_verifier=False)
 
     # Run Mode C (Gemini + verifier)
-    run_evaluation(pairs, dataset_path, "C - Gemini + verifier", use_gemini=True, use_verifier=True)
+    # run_evaluation(pairs, dataset_path, "C - Gemini + verifier", use_gemini=True, use_verifier=True)
 
 if __name__ == "__main__":
     main()

@@ -55,10 +55,17 @@ class GeminiComposer:
             return None
 
     def _build_prompt(self, evidence: DecisionEvidenceSet, strategy: MessageStrategy) -> str:
-        # Format evidence
-        evidence_lines = []
+        # Format evidence hierarchically
+        domains = {}
         for e in evidence.items:
-            evidence_lines.append(f"- {e.source_domain}.{e.field_path}: {e.value}")
+            domains.setdefault(e.source_domain, []).append(e)
+
+        evidence_lines = []
+        for domain, items in domains.items():
+            evidence_lines.append(f"## {domain.capitalize()} Context")
+            for e in items:
+                evidence_lines.append(f"- {e.field_path}: {e.value}")
+            evidence_lines.append("")
 
         evidence_text = "\n".join(evidence_lines)
 
