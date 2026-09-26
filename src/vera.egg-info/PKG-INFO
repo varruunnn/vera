@@ -6,6 +6,7 @@ Requires-Python: >=3.10
 Requires-Dist: pydantic>=2.0.0
 Requires-Dist: fastapi>=0.100.0
 Requires-Dist: uvicorn>=0.23.0
+Requires-Dist: google-genai
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: httpx>=0.24.0; extra == "dev"

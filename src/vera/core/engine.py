@@ -16,6 +16,10 @@ class DeterministicEngine:
         # Trigger Evidence
         evidence.add(Evidence("RAW_FACT", trigger_ctx.kind, "trigger", trigger_ctx.id, "kind", "Trigger kind"))
         evidence.add(Evidence("RAW_FACT", trigger_ctx.scope, "trigger", trigger_ctx.id, "scope", "Trigger scope"))
+
+        from vera.core.adapters import apply_trigger_adapter
+        apply_trigger_adapter(trigger_ctx, evidence)
+
         if trigger_ctx.expires_at:
             evidence.add(Evidence("RAW_FACT", trigger_ctx.expires_at, "trigger", trigger_ctx.id, "expires_at", "Trigger expiration time"))
             try:
@@ -99,7 +103,7 @@ class DeterministicEngine:
 
         return Decision(True, "Valid context and constraints met", evidence, intent, strategy)
 
-    def _generate_action(self, decision: Decision) -> Optional[Action]:
+    def _generate_action(self, decision: Decision, use_gemini: bool = False, use_verifier: bool = False, verifier_failures: list = None) -> Optional[Action]:
         if not decision.should_act or not decision.intent or not decision.strategy:
             return None
 
@@ -108,13 +112,40 @@ class DeterministicEngine:
 
         if intent.audience == "customer":
             c_name = next((e.value for e in decision.evidence.items if e.source_domain == "customer" and e.field_path == "identity.name"), "Customer")
-            body = f"Hello {c_name}, {m_name} has a message for you."
+            fallback_body = f"Hello {c_name}, {m_name} has a message for you."
             send_as = "merchant_on_behalf"
             conv_id = f"conv_{intent.customer_id}_{intent.trigger_id}"
         else:
-            body = f"Hello {m_name}, you have a new alert."
+            fallback_body = f"Hello {m_name}, you have a new alert."
             send_as = "vera"
             conv_id = f"conv_{intent.merchant_id}_{intent.trigger_id}"
+
+        body = fallback_body
+        cta = decision.strategy.cta
+
+        if use_gemini:
+            from vera.core.composer import GeminiComposer
+            from vera.core.verifier import OutputVerifier
+
+            composer = GeminiComposer()
+            output = composer.compose(decision)
+
+            if output:
+                if use_verifier:
+                    verifier = OutputVerifier()
+                    v_result = verifier.verify(output, decision.evidence)
+                    if v_result.is_valid:
+                        body = output.body
+                        cta = output.cta_text
+                    else:
+                        if verifier_failures is not None:
+                            verifier_failures.extend(v_result.failures)
+                else:
+                    body = output.body
+                    cta = output.cta_text
+            else:
+                if verifier_failures is not None:
+                    verifier_failures.append("Composer failed or timed out")
 
         return Action(
             conversation_id=conv_id,
@@ -123,12 +154,12 @@ class DeterministicEngine:
             send_as=send_as,
             trigger_id=intent.trigger_id,
             body=body,
-            cta=decision.strategy.cta,
+            cta=cta,
             suppression_key=intent.suppression_key or "default_key",
             rationale=decision.reason
         )
 
-    def tick(self, request: TickRequest) -> TickResponse:
+    def tick(self, request: TickRequest, use_gemini: bool = False, use_verifier: bool = False, verifier_failures_dict: dict = None) -> TickResponse:
         actions = []
         for trigger_id in request.available_triggers:
             trigger_ctx_payload = self.store.get(Scope.TRIGGER, trigger_id)
@@ -141,7 +172,11 @@ class DeterministicEngine:
             evidence = self._extract_evidence(trigger_ctx, request.now)
             decision = self._evaluate(trigger_id, evidence)
 
-            action = self._generate_action(decision)
+            v_fails = []
+            action = self._generate_action(decision, use_gemini=use_gemini, use_verifier=use_verifier, verifier_failures=v_fails)
+            if verifier_failures_dict is not None and v_fails:
+                verifier_failures_dict[trigger_id] = v_fails
+
             if action:
                 actions.append(action)
 

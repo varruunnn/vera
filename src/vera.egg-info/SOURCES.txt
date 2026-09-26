@@ -8,8 +8,12 @@ src/vera.egg-info/dependency_links.txt
 src/vera.egg-info/requires.txt
 src/vera.egg-info/top_level.txt
 src/vera/adapters/__init__.py
+src/vera/adapters/fastapi_app.py
 src/vera/config/__init__.py
+src/vera/config/env.py
 src/vera/core/__init__.py
+src/vera/core/decision.py
+src/vera/core/engine.py
 src/vera/core/evidence.py
 src/vera/core/models.py
 src/vera/core/store.py

@@ -1,6 +1,7 @@
 pydantic>=2.0.0
 fastapi>=0.100.0
 uvicorn>=0.23.0
+google-genai
 
 [dev]
 pytest>=7.0.0
