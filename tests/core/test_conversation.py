@@ -117,3 +117,24 @@ def test_negative_intent(base_engine):
     response = engine.reply(req)
     assert response.action == "wait"
     assert "negative" in response.rationale.lower()
+
+def test_conditional_positive_intent(base_engine):
+    engine, store = base_engine
+    
+    req = ReplyRequest(
+        conversation_id="conv_m_1_trg_1",
+        merchant_id="m_1",
+        from_role="merchant",
+        message="yes, but only if it's free",
+        turn_number=1
+    )
+    
+    response = engine.reply(req)
+    assert response.action == "wait"
+    assert "unresolved" in response.rationale.lower()
+    
+    conv = store.get(Scope.CONVERSATION, "conv_m_1_trg_1")
+    state = ConversationState(**conv.payload)
+    assert state.positive_intent is True
+    assert state.has_unresolved_condition is True
+    assert state.status == ConversationStatus.QUALIFYING

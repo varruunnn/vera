@@ -80,6 +80,9 @@ class DeterministicEngine:
 
             pos_intent = c_state.get("positive_intent", False)
             evidence.add(Evidence("RAW_FACT", pos_intent, "conversation", conv_id, "state.positive_intent", "User showed positive intent"))
+            
+            has_cond = c_state.get("has_unresolved_condition", False)
+            evidence.add(Evidence("RAW_FACT", has_cond, "conversation", conv_id, "state.has_unresolved_condition", "User has unresolved conditions or constraints"))
 
             last_intent = c_state.get("last_intent")
             if last_intent:
@@ -88,6 +91,14 @@ class DeterministicEngine:
             last_reply = c_state.get("last_reply")
             if last_reply:
                 evidence.add(Evidence("RAW_FACT", last_reply, "conversation", conv_id, "recent_messages.last_reply", "Latest reply text"))
+                
+            prior_action = c_state.get("last_action")
+            if prior_action:
+                evidence.add(Evidence("RAW_FACT", prior_action, "conversation", conv_id, "state.last_action", "Prior executed action"))
+                
+            repetition_count = c_state.get("consecutive_similar_replies", 0)
+            if repetition_count > 0:
+                evidence.add(Evidence("RAW_FACT", repetition_count, "conversation", conv_id, "metrics.consecutive_similar_replies", "Number of consecutive duplicate replies"))
 
         return evidence
 
@@ -95,6 +106,7 @@ class DeterministicEngine:
         # Check conversation first
         conv_opt_out = False
         conv_pos_intent = False
+        conv_has_cond = False
         conv_status = "NEW"
         conv_intent = None
 
@@ -103,6 +115,8 @@ class DeterministicEngine:
                 conv_opt_out = True
             elif e.field_path == "state.positive_intent" and e.value is True:
                 conv_pos_intent = True
+            elif e.field_path == "state.has_unresolved_condition" and e.value is True:
+                conv_has_cond = True
             elif e.field_path == "state.status":
                 # Handle Enum stringification if needed
                 conv_status = e.value.value if hasattr(e.value, "value") else str(e.value).replace("ConversationStatus.", "")
@@ -124,6 +138,9 @@ class DeterministicEngine:
 
         if conv_status not in ("NEW", "OUTREACH", "QUALIFYING") and not conv_pos_intent and conv_intent not in ("POSITIVE_INTENT", "ACTION_REQUEST"):
             return Decision(False, "Already engaged, waiting for resolution", evidence)
+            
+        if conv_has_cond or conv_intent == "CONDITIONAL_POSITIVE_INTENT":
+            return Decision(False, "Condition or question remains unresolved", evidence)
 
         t_scope = next((e.value for e in evidence.get_by_kind("RAW_FACT") if e.source_domain == "trigger" and e.field_path == "scope"), None)
         is_expired = next((e.value for e in evidence.get_by_kind("DERIVED_FACT") if e.source_domain == "trigger" and e.field_path == "is_expired"), False)
@@ -166,7 +183,7 @@ class DeterministicEngine:
                 intent = ActionIntent("merchant", "notify", merchant_id, trigger_id, None, f"baseline_{trigger_id}_{merchant_id}")
                 strategy = MessageStrategy("merchant", "Alert merchant", "professional", ["trigger occurred"], [], [], "none")
 
-        if conv_pos_intent or conv_intent in ("POSITIVE_INTENT", "ACTION_REQUEST"):
+        if (conv_pos_intent or conv_intent in ("POSITIVE_INTENT", "ACTION_REQUEST")) and not conv_has_cond:
             return Decision(True, "Execute requested action", evidence, intent, strategy)
 
         return Decision(True, "Valid context and constraints met", evidence, intent, strategy)
@@ -275,14 +292,25 @@ class DeterministicEngine:
 
         state.last_reply = request.message
         state.reply_count += 1
+        
+        # Override intent to AUTO_REPLY if it's an exact duplicate
+        if state.consecutive_similar_replies >= 1:
+            intent = Intent.AUTO_REPLY
+            
         state.last_intent = intent
 
         if intent == Intent.OPT_OUT:
             state.opt_out = True
             state.status = ConversationStatus.OPTED_OUT
 
+        elif intent == Intent.CONDITIONAL_POSITIVE_INTENT:
+            state.positive_intent = True
+            state.has_unresolved_condition = True
+            state.status = ConversationStatus.QUALIFYING
+
         elif intent in (Intent.POSITIVE_INTENT, Intent.ACTION_REQUEST):
             state.positive_intent = True
+            state.has_unresolved_condition = False
             if state.status == ConversationStatus.QUALIFYING:
                 state.status = ConversationStatus.ACTION_REQUESTED
             else:

@@ -11,6 +11,7 @@ class Scope(str, Enum):
 
 class Intent(str, Enum):
     POSITIVE_INTENT = "POSITIVE_INTENT"
+    CONDITIONAL_POSITIVE_INTENT = "CONDITIONAL_POSITIVE_INTENT"
     NEGATIVE_INTENT = "NEGATIVE_INTENT"
     OPT_OUT = "OPT_OUT"
     QUESTION = "QUESTION"
@@ -42,6 +43,7 @@ class ConversationState(BaseModel):
     last_intent: Optional[Intent] = None
     opt_out: bool = False
     positive_intent: bool = False
+    has_unresolved_condition: bool = False
     pending_action: Optional[str] = None
 
 class CategoryContext(BaseModel):
