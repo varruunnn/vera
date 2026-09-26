@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+src/vera/__init__.py
+src/vera/bootstrap.py
+src/vera.egg-info/PKG-INFO
+src/vera.egg-info/SOURCES.txt
+src/vera.egg-info/dependency_links.txt
+src/vera.egg-info/requires.txt
+src/vera.egg-info/top_level.txt
+src/vera/adapters/__init__.py
+src/vera/config/__init__.py
+src/vera/core/__init__.py
+src/vera/core/evidence.py
+src/vera/core/models.py
+src/vera/core/store.py
