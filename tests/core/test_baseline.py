@@ -5,7 +5,7 @@ from vera.core.models import TriggerContext, TickRequest, Scope, ContextPayload
 
 def test_compose_merchant_trigger():
     cat = {"category_id": "cat_1", "name": "Dental"}
-    merchant = {"merchant_id": "m_001", "name": "Dr Meera"}
+    merchant = {"merchant_id": "m_001", "identity": {"name": "Dr Meera"}}
     trigger = {"id": "trg_1", "scope": "merchant", "kind": "performance_dip", "merchant_id": "m_001"}
 
     actions = compose(cat, merchant, trigger)
@@ -21,8 +21,8 @@ def test_compose_merchant_trigger():
 
 def test_compose_customer_trigger():
     cat = {"category_id": "cat_1", "name": "Dental"}
-    merchant = {"merchant_id": "m_001", "name": "Dr Meera"}
-    customer = {"customer_id": "c_001", "merchant_id": "m_001", "name": "Priya"}
+    merchant = {"merchant_id": "m_001", "identity": {"name": "Dr Meera"}}
+    customer = {"customer_id": "c_001", "merchant_id": "m_001", "identity": {"name": "Priya"}, "preferences": {"reminder_opt_in": True}}
     trigger = {"id": "trg_1", "scope": "customer", "kind": "recall_due", "merchant_id": "m_001", "customer_id": "c_001"}
 
     actions = compose(cat, merchant, trigger, customer)
@@ -37,7 +37,7 @@ def test_compose_customer_trigger():
 
 def test_compose_insufficient_evidence():
     cat = {"category_id": "cat_1", "name": "Dental"}
-    merchant = {"merchant_id": "m_001", "name": "Dr Meera"}
+    merchant = {"merchant_id": "m_001", "identity": {"name": "Dr Meera"}}
     # Trigger missing target_id and missing customer context
     trigger = {"id": "trg_1", "scope": "customer", "kind": "recall_due"}
 
@@ -46,7 +46,7 @@ def test_compose_insufficient_evidence():
 
 def test_compose_determinism():
     cat = {"category_id": "cat_1", "name": "Dental"}
-    merchant = {"merchant_id": "m_001", "name": "Dr Meera"}
+    merchant = {"merchant_id": "m_001", "identity": {"name": "Dr Meera"}}
     trigger = {"id": "trg_1", "scope": "merchant", "kind": "performance_dip", "merchant_id": "m_001"}
 
     actions1 = compose(cat, merchant, trigger)

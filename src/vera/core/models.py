@@ -37,6 +37,8 @@ class TriggerContext(BaseModel):
     customer_id: Optional[str] = None
     payload: Optional[Dict[str, Any]] = None
     urgency: Optional[Any] = None
+    expires_at: Optional[str] = None
+    suppression_key: Optional[str] = None
     model_config = ConfigDict(extra='allow')
 
 class ContextPayload(BaseModel):
