@@ -9,3 +9,4 @@ challenge_package/
 magicpin-ai-challenge.zip
 src/*.egg-info/
 .venv/
+experiment_results.json

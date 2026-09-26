@@ -40,7 +40,7 @@ class GeminiComposer:
             from google import genai
             # Use JSON schema for structured output
             response = self.client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-2.5-flash-lite',
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     response_mime_type="application/json",
