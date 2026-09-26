@@ -98,3 +98,75 @@ def test_adversarial_repeated(base_engine):
     res1 = reply(engine, "this is an automated message I hate it", turn=1)
     assert "loop detected" not in res1.rationale.lower()
 
+
+def test_opt_out_vs_expired_semantics(base_engine):
+    engine, store = base_engine
+    
+    # 1. Explicit opt-out blocks execution and returns 'end'
+    res_opt = reply(engine, 'stop', turn=1)
+    assert res_opt.action == 'end'
+    
+    # 2. Expired trigger blocks execution but returns 'wait', NOT 'end'
+    store.push(ContextPayload(
+        scope=Scope.TRIGGER,
+        context_id='trg_exp',
+        version=1,
+        payload={'id': 'trg_exp', 'kind': 'perf_dip', 'scope': 'merchant', 'merchant_id': 'm_1', 'expires_at': '2020-01-01T00:00:00Z'}
+    ))
+    res_exp = engine.reply(ReplyRequest(conversation_id='conv_m_1_trg_exp', merchant_id='m_1', from_role='merchant', message='yes proceed', turn_number=1))
+    assert res_exp.action == 'wait'
+    assert 'expired' in res_exp.rationale.lower()
+    
+    # 3. Merchant subscription expiry does not become customer opt-out
+    store.push(ContextPayload(
+        scope=Scope.TRIGGER,
+        context_id='trg_2',
+        version=1,
+        payload={'id': 'trg_2', 'kind': 'perf_dip', 'scope': 'merchant', 'merchant_id': 'm_2'}
+    ))
+    store.push(ContextPayload(
+        scope=Scope.MERCHANT,
+        context_id='m_2',
+        version=1,
+        payload={'merchant_id': 'm_2', 'name': 'Exp Merchant', 'subscription': {'status': 'expired'}}
+    ))
+    res_mexp = engine.reply(ReplyRequest(conversation_id='conv_m_2_trg_2', merchant_id='m_2', from_role='merchant', message='yes proceed', turn_number=1))
+    assert res_mexp.action == 'wait'
+    assert 'expired' in res_mexp.rationale.lower()
+    
+    # 4. Customer relationship expiry/lapse (opt-in = false) blocks execution, but is not 'end'
+    store.push(ContextPayload(
+        scope=Scope.TRIGGER,
+        context_id='trg_cust',
+        version=1,
+        payload={'id': 'trg_cust', 'kind': 'cust_dip', 'scope': 'customer', 'customer_id': 'c_1', 'merchant_id': 'm_1'}
+    ))
+    store.push(ContextPayload(
+        scope=Scope.CUSTOMER,
+        context_id='c_1',
+        version=1,
+        payload={'customer_id': 'c_1', 'merchant_id': 'm_1', 'name': 'No Optin Cust', 'preferences': {'reminder_opt_in': False}}
+    ))
+    res_cust = engine.reply(ReplyRequest(conversation_id='conv_c_1_trg_cust', merchant_id='m_1', from_role='customer', message='yes proceed', turn_number=1))
+    assert res_cust.action == 'wait'
+    assert 'opted in' in res_cust.rationale.lower()
+
+def test_consecutive_similar_replies_threshold(base_engine):
+    engine, store = base_engine
+    
+    # First occurrence of 'Hello'
+    req1 = ReplyRequest(conversation_id='conv_m_1_trg_1', merchant_id='m_1', from_role='merchant', message='Hello', turn_number=1)
+    res1 = engine.reply(req1)
+    
+    state1 = store.get(Scope.CONVERSATION, 'conv_m_1_trg_1')
+    assert state1.payload['consecutive_similar_replies'] == 0
+    assert state1.payload['last_intent'] == 'OTHER'
+    
+    # Second occurrence of 'Hello'
+    req2 = ReplyRequest(conversation_id='conv_m_1_trg_1', merchant_id='m_1', from_role='merchant', message='Hello', turn_number=2)
+    res2 = engine.reply(req2)
+    
+    state2 = store.get(Scope.CONVERSATION, 'conv_m_1_trg_1')
+    assert state2.payload['consecutive_similar_replies'] == 1
+    assert state2.payload['last_intent'] == 'AUTO_REPLY'
+    assert res2.action == 'wait'
